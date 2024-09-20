@@ -3,7 +3,7 @@ from diffusers import AutoPipelineForInpainting, AutoencoderKL
 from diffusers.utils import load_image
 import torch
 import matplotlib.pyplot as plt
-from SegBody import segment_body
+from .body_segmentation import segment_body
 
 class InpaintingPipeline:
     def __init__(self, vae_model, pipeline_model, device="cuda"):
