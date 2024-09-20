@@ -3,6 +3,7 @@ from diffusers import AutoPipelineForInpainting, AutoencoderKL
 from diffusers.utils import load_image
 import torch
 import matplotlib.pyplot as plt
+import streamlit as st
 
 
 class InpaintingPipeline:

@@ -1,7 +1,7 @@
 import streamlit as st
 from PIL import Image
 from src.tryon import InpaintingPipeline, load_and_process_image
-from SegBody import segment_body
+from src.SegBody import segment_body
 import torch
 from diffusers import AutoPipelineForInpainting, AutoencoderKL
 from diffusers.utils import load_image
@@ -10,7 +10,7 @@ from diffusers.utils import load_image
 # Set main panel
 # favicon = Image.open("static/images/Trigent_Logo.png")
 st.set_page_config(
-    page_title="Smart Motion Insights | Trigent AXLR8 Labs",
+    page_title="Trigent VTON | Trigent AXLR8 Labs",
     page_icon=':camera:',
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -108,7 +108,7 @@ settings = {
 }
 
 with col3:
-  st.header('')
+  st.subheader('')
 
   if st.button("Try On Cloth", use_container_width=True):
       print("Ready to generate...")
@@ -116,13 +116,16 @@ with col3:
           person_img = load_image('person.jpg').convert("RGB")
           cloth_img = load_image('cloth.jpg').convert("RGB")
           # final_image = app.generate_image(person_img, cloth_img, body_mask_image=body_mask_image, settings=settings)
-          generated_image = virtual_try_on(
-              vton_pipeline, img=person_img, clothing=cloth_img, 
-              prompt=settings['prompt'], negative_prompt=settings['negative_prompt'], 
-              ip_scale=1.0, strength=settings['strength'], guidance_scale=settings['guidance_scale'], steps=settings['steps']
-          )
-          with col3:
-            st.image(generated_image, caption="Person Wearing Clothing", use_column_width=True)
+          st.subheader('')
+          with st.spinner(text='Fashion is the armor to survive the reality of everyday life. — Bill Cunningham'):
+              generated_image = virtual_try_on(
+                  vton_pipeline, img=person_img, clothing=cloth_img, 
+                  prompt=settings['prompt'], negative_prompt=settings['negative_prompt'], 
+                  ip_scale=1.0, strength=settings['strength'], guidance_scale=settings['guidance_scale'], steps=settings['steps']
+              )
+              with col3:
+              
+                st.image(generated_image, caption="Person Wearing Clothing", use_column_width=True)
       else:
           st.warning("Please upload both person and clothing images.")
 
