@@ -3,52 +3,78 @@ from PIL import Image
 from src.tryon import InpaintingPipeline, load_and_process_image
 from src.body_segmentation import segment_body
 import torch
+# Set main panel
+# favicon = Image.open("static/images/Trigent_Logo.png")
+st.set_page_config(
+    page_title="Smart Motion Insights | Trigent AXLR8 Labs",
+    page_icon=':camera:',
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+def get_or_create_session_state_variable(key, default_value=None):
+    """
+    Retrieves the value of a variable from Streamlit's session state.
+    If the variable doesn't exist, it creates it with the provided default value.
 
-class TryOnApp:
-    def __init__(self):
-        self.pipeline = self.initialize_pipeline()
-        self.segment_body = segment_body
+    Args:
+        key (str): The key of the variable in session state.
+        default_value (Any): The default value to assign if the variable doesn't exist.
+
+    Returns:
+        Any: The value of the session state variable.
+    """
+    if key not in st.session_state:
+        st.session_state[key] = default_value
+    return st.session_state[key]
+
+
+
+get_or_create_session_state_variable(key='TryOnApp', default_value=False)
+# if not st.session_state['TryOnApp']:
+# app = loadTryOnApp()
+# st.session_state['TryOnApp'] = True
+@st.cache_resource()
+def virtual_try_on(img, clothing, prompt, negative_prompt, ip_scale=1.0, strength=0.99, guidance_scale=7.5, steps=100):
+    vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
+    pipeline = AutoPipelineForInpainting.from_pretrained("diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
+        vae=vae,
+        torch_dtype=torch.float16,
+        variant="fp16",
+        use_safetensors=True
+    ).to("cuda")
+    pipeline.load_ip_adapter("h94/IP-Adapter", subfolder="sdxl_models", weight_name="ip-adapter_sdxl.bin", low_cpu_mem_usage=True)
     
-    def initialize_pipeline(self):
-        vae_model = "madebyollin/sdxl-vae-fp16-fix"
-        pipeline_model = "diffusers/stable-diffusion-xl-1.0-inpainting-0.1"
-        adapter_path = "h94/IP-Adapter"
-        pipeline = InpaintingPipeline(vae_model, pipeline_model)
-        pipeline.load_ip_adapter(adapter_path, subfolder="sdxl_models", weight_name="ip-adapter_sdxl.bin")
-        return pipeline
+    _, mask_img = segment_body(img, face=False)
+    pipeline.set_ip_adapter_scale(ip_scale)
+    images = pipeline(
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        image=img,
+        mask_image=mask_img,
+        ip_adapter_image=clothing,
+        strength=strength,
+        guidance_scale=guidance_scale,
+        num_inference_steps=steps,
+    ).images
+    return images[0]
 
-    def generate_image(self, person_img, cloth_img, settings):
-        _, mask_image = self.pipeline.segment_body(person_img, face=False)
-        self.pipeline.set_adapter_scale(1.0)
-        return self.pipeline.inpaint_image(
-            prompt=settings["prompt"],
-            negative_prompt=settings["negative_prompt"],
-            image=person_img,
-            mask_image=mask_image,
-            ip_adapter_image=cloth_img,
-            strength=settings["strength"],
-            guidance_scale=settings["guidance_scale"],
-            steps=settings["steps"]
-        )
 
-app = TryOnApp()
 
 st.title("Virtual Clothing Try-On")
-
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 with col1:
     person_image_file = st.file_uploader("Upload an image of a person", type=["jpg", "jpeg", "png"])
     if person_image_file:
         person_image = Image.open(person_image_file)
         st.image(person_image, caption="Person Image", use_column_width=True)
-
+        person_image.save('person.jpg')
 with col2:
     cloth_image_file = st.file_uploader("Upload an image of clothing", type=["jpg", "jpeg", "png"])
     if cloth_image_file:
         cloth_image = Image.open(cloth_image_file)
         st.image(cloth_image, caption="Clothing Image", use_column_width=True)
-
+        cloth_image.save('cloth.jpg')
 settings = {
     "prompt": st.text_input("Prompt", "photorealistic, perfect body, beautiful skin, realistic skin, natural skin"),
     "negative_prompt": st.text_input("Negative Prompt", "ugly, bad quality, bad anatomy, deformed body, deformed hands, deformed feet, deformed face, deformed clothing, deformed skin, bad skin, leggings, tights, stockings"),
@@ -60,9 +86,11 @@ settings = {
 if st.button("Generate"):
     print("Ready to generate...")
     if person_image_file and cloth_image_file:
-        person_img = load_and_process_image(person_image_file)
-        cloth_img = load_and_process_image(cloth_image_file)
-        final_image = app.generate_image(person_img, cloth_img, settings)
-        st.image(final_image, caption="Person Wearing Clothing", use_column_width=True)
+        person_img = load_and_process_image('person.jpg')
+        cloth_img = load_and_process_image('cloth.jpg')
+        body_mask_image = segment_body(person_img, include_face=True)
+        final_image = app.generate_image(person_img, cloth_img, body_mask_image=body_mask_image, settings=settings)
+        with col3:
+          st.image(final_image, caption="Person Wearing Clothing", use_column_width=True)
     else:
         st.warning("Please upload both person and clothing images.")
