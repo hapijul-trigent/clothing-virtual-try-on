@@ -1,11 +1,13 @@
 import streamlit as st
 from PIL import Image
-from tryon import InpaintingPipeline, load_and_process_image
+from src.tryon import InpaintingPipeline, load_and_process_image
+from src.body_segmentation import segment_body
 import torch
 
 class TryOnApp:
     def __init__(self):
         self.pipeline = self.initialize_pipeline()
+        self.segment_body = segment_body
     
     def initialize_pipeline(self):
         vae_model = "madebyollin/sdxl-vae-fp16-fix"
@@ -56,6 +58,7 @@ settings = {
 }
 
 if st.button("Generate"):
+    print("Ready to generate...")
     if person_image_file and cloth_image_file:
         person_img = load_and_process_image(person_image_file)
         cloth_img = load_and_process_image(cloth_image_file)

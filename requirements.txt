@@ -6,3 +6,5 @@ Pillow
 matplotlib
 numpy
 insightface
+onnxruntime
+spaces
